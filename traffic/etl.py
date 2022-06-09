@@ -7,6 +7,17 @@ import glob
 
 
 def create_traffic_position_l1(read_path, save_path, year_list=None):
+    """
+    Create first position traffic layer in parquet format
+
+    Args:
+        read_path: Read path
+        save_path: Save path
+        year_list: Year list to process
+
+    Returns: Processed position DataFrame
+
+    """
     if year_list is None:
         filenames = [file for file in glob.glob(f'{read_path}/*/*.csv')]
     else:
@@ -37,6 +48,16 @@ def create_traffic_position_l1(read_path, save_path, year_list=None):
 
 
 def create_traffic_position_l2(read_path, save_path):
+    """
+    Create second position traffic layer in parquet format
+
+    Args:
+        read_path: Read path
+        save_path: Save path
+
+    Returns: Processed position DataFrame
+
+    """
     traffic_position = pd.read_csv(f'{read_path}/position_l1.csv', sep='|')
     sensor_pos = traffic_position[['id', 'utm_x', 'utm_y']].drop_duplicates()
     sensor_all_time = sensor_pos.groupby('id').size().reset_index(name='n').sort_values(by='n', ascending=False)
@@ -59,6 +80,17 @@ def create_traffic_position_l2(read_path, save_path):
 
 
 def create_traffic_historic_l1(read_path, save_path, year_list=None):
+    """
+    Create first historic traffic layer in parquet format
+
+    Args:
+        read_path: Read path
+        save_path: Save path
+        year_list: Year list to process
+
+    Returns: Processed historic DataFrame
+
+    """
     if year_list is None:
         filenames = [file for file in glob.glob(f'{read_path}/*/*.csv')]
     else:
@@ -72,6 +104,16 @@ def create_traffic_historic_l1(read_path, save_path, year_list=None):
 
 
 def create_traffic_historic_l2(read_path, save_path, variable='intensidad'):
+    """
+    Create second historic traffic layer in parquet format
+
+    Args:
+        read_path: Read path
+        save_path: Save path
+
+    Returns: Processed historic DataFrame
+
+    """
     traffic_historic = dd.read_parquet(f'{read_path}/historic_l1.parquet',
                                        columns=['fecha', 'id', 'tipo_elem', variable])
     traffic_historic['tipo_elem'] = traffic_historic['tipo_elem'].mask(
@@ -87,6 +129,16 @@ def create_traffic_historic_l2(read_path, save_path, variable='intensidad'):
 
 
 def agg_hourly(traffic_historic, split_out=128):
+    """
+    Aggregates data to hourly format.
+
+    Args:
+        traffic_historic: Historic DataFrame
+        split_out: Dask partition
+
+    Returns: Hourly aggregated data
+
+    """
     traffic_historic = traffic_historic[traffic_historic.y >= 0].reset_index(drop=True)
     traffic_historic['ds'] = traffic_historic.date.dt.date
     traffic_historic['hour'] = traffic_historic.date.dt.hour
@@ -98,6 +150,16 @@ def agg_hourly(traffic_historic, split_out=128):
 
 
 def create_traffic_lf(position_read_path, historic_read_path, position_save_path, historic_save_path, agg_hour=False):
+    """
+    Create second final traffic layer in parquet format
+
+    Args:
+        read_path: Read path
+        save_path: Save path
+
+    Returns: Processed historic DataFrame
+
+    """
     traffic_position = pd.read_csv(f'{position_read_path}/position_l2.csv', sep='|')
     traffic_historic = dd.read_parquet(f'{historic_read_path}/historic_l2.parquet')
 
@@ -126,6 +188,16 @@ def create_traffic_lf(position_read_path, historic_read_path, position_save_path
 
 
 def create_traffic_position(position_read_path, historic_read_path, position_save_path):
+    """
+    Create final position traffic layer in parquet format
+
+    Args:
+        read_path: Read path
+        save_path: Save path
+
+    Returns: Processed position DataFrame
+
+    """
     traffic_position = pd.read_csv(f'{position_read_path}/position_lf.csv', sep='|')
     traffic_historic = dd.read_parquet(f'{historic_read_path}/historic.parquet')
     nodes = list(traffic_historic.id.unique())
@@ -137,4 +209,13 @@ def create_traffic_position(position_read_path, historic_read_path, position_sav
 
 
 def load_data(path, dask=True):
+    """
+
+    Args:
+        path: File path
+        dask: is it a Dask or csv DataFrame
+
+    Returns: Loaded data
+
+    """
     return dd.read_parquet(path) if dask else pd.read_csv(path, sep='|')
